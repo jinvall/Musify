@@ -112,9 +112,12 @@ class _TabMeasurePainter extends CustomPainter {
 
     // Draw frets/notes from rendered lines if available.
     final renderedLines = measure.lines;
-    if (renderedLines.length == stringCount) {
+    if (renderedLines.isNotEmpty) {
+      final effectiveLines = renderedLines.length == stringCount
+          ? renderedLines
+          : List.generate(stringCount, (i) => i < renderedLines.length ? renderedLines[i] : '');
       for (var stringIndex = 0; stringIndex < stringCount; stringIndex++) {
-        final line = renderedLines[stringCount - 1 - stringIndex];
+        final line = effectiveLines[stringCount - 1 - stringIndex];
         final y = stringSpacing * (stringIndex + 1);
         _drawLine(canvas, line, y, margin, size.width - margin, fretColor, labelColor);
       }

@@ -328,62 +328,83 @@ class SongsterrProvider implements TabProvider {
       logger.log('Songsterr parser: starting parse, measures=${(map['measures'] as List?)?.length}');
       final measures = <TabMeasure>[];
       final rawMeasures = map['measures'] as List<dynamic>? ?? <dynamic>[];
+
+      // Use the resolved tuning length so rendered lines always match the painter's string count.
+      final tuning = map['tuning'] != null
+          ? List<int>.from(map['tuning'] as List)
+          : result.tuning ?? _defaultTuningFor(map['instrument'] as String?);
+      final stringCount = tuning.length;
+
+      var currentStartBeat = 0;
       for (final rawMeasure in rawMeasures) {
         final measureMap = rawMeasure as Map<String, dynamic>;
         final voices = measureMap['voices'] as List<dynamic>? ?? <dynamic>[];
-        final lines = <String>[];
-        
+
+        // Collect all beats from all voices for this measure.
+        final allBeats = <Map<String, dynamic>>[];
         for (final voice in voices) {
           final voiceMap = voice as Map<String, dynamic>;
           final beats = voiceMap['beats'] as List<dynamic>? ?? <dynamic>[];
-          
-          for (final beat in beats) {
-            final beatMap = beat as Map<String, dynamic>;
-            final notes = beatMap['notes'] as List<dynamic>? ?? <dynamic>[];
-            final chord = beatMap['chord'] as Map<String, dynamic>?;
-            final isRest = beatMap['rest'] as bool? ?? false;
-            
-            if (isRest) {
-              lines.add('-' * 30);
-              continue;
+          allBeats.addAll(beats.cast<Map<String, dynamic>>());
+        }
+
+        // Build per-string beat segments.
+        final stringSegments = List.generate(stringCount, (_) => <String>[]);
+
+        for (final beat in allBeats) {
+          final beatMap = beat as Map<String, dynamic>;
+          final notes = beatMap['notes'] as List<dynamic>? ?? <dynamic>[];
+          final isRest = beatMap['rest'] as bool? ?? false;
+
+          // Initialize this beat's fret content for each string.
+          final beatFrets = List.generate(stringCount, (_) => '');
+
+          if (isRest) {
+            for (var i = 0; i < stringCount; i++) {
+              beatFrets[i] = '-';
             }
-            
-            if (chord != null && chord['text'] != null) {
-              lines.add(' ' * 10 + (chord['text'] as String));
-            }
-            
+          } else {
             for (final note in notes) {
               final noteMap = note as Map<String, dynamic>;
               final fret = noteMap['fret'] as int? ?? -1;
               final string = noteMap['string'] as int? ?? 0;
-              final lineIndex = (map['strings'] as int? ?? 6) - 1 - string;
-              while (lines.length <= lineIndex) {
-                lines.add('');
+              final lineIndex = stringCount - 1 - string;
+              if (lineIndex >= 0 && lineIndex < stringCount) {
+                beatFrets[lineIndex] = fret >= 0 ? fret.toString() : '-';
               }
-              final line = lines[lineIndex];
-              final fretStr = fret >= 0 ? fret.toString() : '-';
-              lines[lineIndex] = line + fretStr;
             }
           }
+
+          // Append this beat's segments to each string.
+          for (var i = 0; i < stringCount; i++) {
+            stringSegments[i].add(beatFrets[i]);
+          }
         }
-        
+
+        // Join beat segments with '|' to form tab lines.
+        final lines = stringSegments.map((segments) => segments.join('|')).toList();
+
+        final measureBeats = (measureMap['signature'] as List<dynamic>?)?.first as int? ?? 4;
         measures.add(TabMeasure(
           lines: lines,
-          startBeat: 0,
-          beats: (measureMap['signature'] as List<dynamic>?)?.first as int? ?? 4,
+          startBeat: currentStartBeat,
+          beats: measureBeats,
           beatType: (measureMap['signature'] as List<dynamic>?)?.last as int? ?? 4,
           sectionLabel: measureMap['marker']?['text'] as String?,
         ));
+        currentStartBeat += measureBeats;
       }
+
       logger.log('Songsterr parser: parsed ${measures.length} measures');
+      if (measures.isNotEmpty) {
+        logger.log('Songsterr parser: first measure lines=${measures.first.lines.length}, sample=${measures.first.lines.take(3).toList()}');
+      }
 
       return Tab(
         song: result.title,
         artist: result.artist,
         instrument: map['instrument'] as String? ?? result.instrument ?? 'Unknown',
-        tuning: map['tuning'] != null
-            ? List<int>.from(map['tuning'] as List)
-            : result.tuning ?? _defaultTuningFor(map['instrument'] as String?),
+        tuning: tuning,
         capo: map['capo'] as int? ?? result.capo,
         tempo: map['automations']?['tempo']?.first?['bpm'] as int? ?? result.tempo,
         measures: measures,

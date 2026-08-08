@@ -88,17 +88,13 @@ class TabRenderer {
     if (measure.lines.isEmpty) return '';
 
     // Use the rendered lines from the tab data if available.
-    if (measure.lines.length == tuning.length) {
-      return measure.lines.join('\n');
-    }
+    final lines = measure.lines.length == tuning.length
+        ? measure.lines
+        : List.generate(tuning.length, (i) => i < measure.lines.length ? measure.lines[i] : '');
 
-    // Fallback: generate placeholder lines.
-    final strings = <String>[];
-    for (var i = 0; i < tuning.length; i++) {
-      final noteName = _midiNoteName(tuning[i]);
-      strings.add('$noteName|${'-' * 20}|');
-    }
-    return strings.join('\n');
+    if (lines.every((line) => line.trim().isEmpty)) return '';
+
+    return lines.join('\n');
   }
 
   String _tuningName(List<int> tuning) {
