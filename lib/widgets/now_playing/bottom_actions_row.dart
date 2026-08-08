@@ -31,6 +31,7 @@ import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:musify/utilities/playlist_dialogs.dart';
 import 'package:musify/widgets/queue_list_view.dart';
+import 'package:musify/screens/tab_viewer_page.dart';
 
 class BottomActionsRow extends StatefulWidget {
   const BottomActionsRow({
@@ -39,11 +40,13 @@ class BottomActionsRow extends StatefulWidget {
     required this.iconSize,
     required this.isLargeScreen,
     required this.lyricsController,
+    this.onTabPressed,
   });
   final MediaItem metadata;
   final double iconSize;
   final bool isLargeScreen;
   final dynamic lyricsController;
+  final VoidCallback? onTabPressed;
 
   @override
   State<BottomActionsRow> createState() => _BottomActionsRowState();
@@ -183,6 +186,22 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                 size: responsiveIconSize,
                 onPressed: widget.lyricsController.flipcard,
                 tooltip: l10n.lyrics,
+              ),
+            if (!offlineMode.value && !isRadioStation)
+              _buildSimpleActionButton(
+                context: context,
+                icon: FluentIcons.document_24_regular,
+                colorScheme: colorScheme,
+                size: responsiveIconSize,
+                onPressed: widget.onTabPressed ??
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const TabViewerPage(),
+                        ),
+                      );
+                    },
+                tooltip: l10n.tab,
               ),
             _buildActionButton(
               context: context,

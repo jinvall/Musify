@@ -24,6 +24,8 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_flip_card/flutter_flip_card.dart';
 import 'package:musify/main.dart';
+import 'package:musify/screens/tab_viewer_page.dart';
+import 'package:musify/services/tab_manager.dart';
 import 'package:musify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
 import 'package:musify/widgets/now_playing/now_playing_controls.dart';
@@ -38,6 +40,17 @@ class NowPlayingPage extends StatefulWidget {
 
 class _NowPlayingPageState extends State<NowPlayingPage> {
   final _lyricsController = FlipCardController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Start listening to media item changes for tab resolution.
+    audioHandler.mediaItem.listen((mediaItem) {
+      if (mediaItem != null) {
+        TabManager.instance.onTrackChanged(mediaItem);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +177,13 @@ class _DesktopLayout extends StatelessWidget {
                   iconSize: adjustedMiniIconSize,
                   isLargeScreen: true,
                   lyricsController: lyricsController,
+                  onTabPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TabViewerPage(),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
               ],
@@ -236,6 +256,13 @@ class _MobileLayout extends StatelessWidget {
             iconSize: adjustedMiniIconSize,
             isLargeScreen: isLargeScreen,
             lyricsController: lyricsController,
+            onTabPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const TabViewerPage(),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
         ],
@@ -281,6 +308,13 @@ class _MobileLayout extends StatelessWidget {
                   iconSize: adjustedMiniIconSize,
                   isLargeScreen: isLargeScreen,
                   lyricsController: lyricsController,
+                  onTabPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TabViewerPage(),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
               ],
