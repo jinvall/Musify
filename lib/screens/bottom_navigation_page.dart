@@ -178,7 +178,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       ),
     ];
 
-    // Only add search tab in online mode
+    // Only add search and influences tabs in online mode
     if (!isOfflineMode) {
       items.add(
         _NavigationItem(
@@ -208,6 +208,19 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       ),
     ]);
 
+    // Only add influences tab in online mode
+    if (!isOfflineMode) {
+      items.add(
+        _NavigationItem(
+          icon: FluentIcons.fingerprint_24_regular,
+          selectedIcon: FluentIcons.fingerprint_24_filled,
+          label: 'Influences',
+          route: '/influences',
+          shellIndex: 4,
+        ),
+      );
+    }
+
     return items;
   }
 
@@ -216,8 +229,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
     final currentRoute = GoRouterState.of(context).matchedLocation;
 
-    // If we're switching to offline mode and currently on search tab
-    if (isOfflineMode && currentRoute.startsWith('/search')) {
+    // If we're switching to offline mode and currently on search or influences tab
+    if (isOfflineMode && (currentRoute.startsWith('/search') || currentRoute.startsWith('/influences'))) {
       // Navigate to home
       widget.child.goBranch(0);
     }
@@ -257,6 +270,10 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
     // If the Search branch (1) is active but Search is hidden in offline mode,
     // fall back to the Home tab.
     if (isOfflineMode && currentShellIndex == 1) return 0;
+
+    // If the Influences branch (4) is active but Influences is hidden in offline mode,
+    // fall back to the Home tab.
+    if (isOfflineMode && currentShellIndex == 4) return 0;
 
     // Final fallback: return the first tab to keep UI in a valid state.
     return 0;

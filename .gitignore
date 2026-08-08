@@ -50,3 +50,7 @@ lib/localization/app_*.dart
 
 # Generated untranslated messages file
 lib/localization/untranslated.json
+
+# Backup and downloaded artifacts
+pubspec.yaml.backup
+*.zip

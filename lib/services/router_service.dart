@@ -27,6 +27,8 @@ import 'package:musify/screens/about_page.dart';
 import 'package:musify/screens/artist_page.dart';
 import 'package:musify/screens/bottom_navigation_page.dart';
 import 'package:musify/screens/equalizer_page.dart';
+import 'package:musify/screens/fingerprint_search_page.dart';
+import 'package:musify/screens/fingerprint_page.dart';
 import 'package:musify/screens/home_page.dart';
 import 'package:musify/screens/library_page.dart';
 import 'package:musify/screens/playlist_folder_page.dart';
@@ -111,6 +113,8 @@ class NavigationManager {
       GlobalKey<NavigatorState>();
   static final GlobalKey<NavigatorState> settingsTabNavigatorKey =
       GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> fingerprintTabNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   BuildContext get context {
     final ctx = router.routerDelegate.navigatorKey.currentContext;
@@ -132,6 +136,7 @@ class NavigationManager {
   static const String settingsPath = '/settings';
   static const String searchPath = '/search';
   static const String libraryPath = '/library';
+  static const String influencesPath = '/influences';
 
   /// Refresh the router configuration when offline mode changes
   static void refreshRouter() {
@@ -312,6 +317,41 @@ class NavigationManager {
                 path: 'equalizer',
                 pageBuilder: (context, state) =>
                     _pushPage(child: const EqualizerPage(), state: state),
+              ),
+            ],
+          ),
+        ],
+      ),
+      // Branch 4: Influences
+      StatefulShellBranch(
+        navigatorKey: fingerprintTabNavigatorKey,
+        routes: [
+          GoRoute(
+            path: influencesPath,
+            pageBuilder: (context, GoRouterState state) {
+              return getPage(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: offlineMode,
+                  builder: (context, isOfflineMode, _) {
+                    return isOfflineMode
+                        ? const OfflineSearchPlaceholder()
+                        : const FingerprintSearchPage();
+                  },
+                ),
+                state: state,
+              );
+            },
+            routes: [
+              GoRoute(
+                path: 'artist/:artistName',
+                pageBuilder: (context, state) => _pushPage(
+                  child: FingerprintPage(
+                    artistName: _decodePathParameter(
+                      state.pathParameters['artistName'],
+                    ),
+                  ),
+                  state: state,
+                ),
               ),
             ],
           ),
