@@ -19,13 +19,14 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:audio_service/audio_service.dart';
-import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:musify/main.dart' show logger;
-import 'package:musify/models/tab_models.dart';
-import 'package:musify/services/tab_providers/songsterr_provider.dart';
-import 'package:musify/services/tab_providers/tab_provider.dart';
+ import 'package:audio_service/audio_service.dart';
+ import 'package:flutter/foundation.dart';
+ import 'package:hive_flutter/hive_flutter.dart';
+ import 'package:musify/main.dart' show logger;
+ import 'package:musify/models/tab_models.dart';
+ import 'package:musify/services/settings_manager.dart';
+ import 'package:musify/services/tab_providers/songsterr_provider.dart';
+ import 'package:musify/services/tab_providers/tab_provider.dart';
 
 /// Manages tab resolution, caching, and async loading.
 ///
@@ -82,10 +83,12 @@ class TabManager {
 
     final query = _buildQuery(mediaItem);
     _currentQuery = query;
+    logger.log('TabManager onTrackChanged: artist=${query.artist}, title=${query.title}, instrument=${query.instrument}');
 
     // Try memory cache first.
     final cached = _memoryCache[query.cacheKey];
     if (cached != null) {
+      logger.log('TabManager: memory cache hit');
       currentTab.value = cached;
       return;
     }
@@ -93,12 +96,14 @@ class TabManager {
     // Try disk cache.
     final diskCached = await _loadFromDisk(query.cacheKey);
     if (diskCached != null) {
+      logger.log('TabManager: disk cache hit');
       _memoryCache[query.cacheKey] = diskCached;
       _trimMemoryCache();
       currentTab.value = diskCached;
       return;
     }
 
+    logger.log('TabManager: starting async resolve');
     // Async network lookup. Music playback must not wait.
     isLoading.value = true;
     _fireAndForget(_resolveAsync(query));
@@ -120,38 +125,51 @@ class TabManager {
 
       final available = await provider.isAvailable();
       if (!available) {
-        error.value = null; // Silently fail; no tabs available.
+        logger.log('TabManager: provider not available');
+        error.value = null;
         isLoading.value = false;
         return;
       }
 
       final result = await provider.resolve(query);
+      logger.log('TabManager: resolve result=${result != null ? "${result.artist} - ${result.title} (trackId: ${result.trackId})" : "null"}');
       if (result == null) {
-        error.value = null; // No tabs found.
+        error.value = null;
         isLoading.value = false;
         return;
       }
 
+      // Update the current query with resolved identifiers so cache/sync stay consistent.
+      if (_currentQuery != null && result.revisionId != null) {
+        _currentQuery = _currentQuery!.copyWith(revisionId: result.revisionId);
+      }
+
       final tab = await provider.getTab(result);
+      logger.log('TabManager: getTab result=${tab != null ? "measures=${tab.measures.length}" : "null"}');
       if (tab == null) {
-        error.value = null; // Tab unavailable.
+        error.value = null;
         isLoading.value = false;
         return;
       }
 
       // Cache the result.
-      _memoryCache[query.cacheKey] = tab;
+      final cacheKey = _currentQuery?.cacheKey ?? query.cacheKey;
+      _memoryCache[cacheKey] = tab;
       _trimMemoryCache();
-      _fireAndForget(_saveToDisk(query.cacheKey, tab));
+      _fireAndForget(_saveToDisk(cacheKey, tab));
+      logger.log('TabManager: cached tab under key=$cacheKey');
 
       // Only update if this is still the current query.
-      if (_currentQuery?.cacheKey == query.cacheKey) {
+      if (_currentQuery?.cacheKey == cacheKey) {
         currentTab.value = tab;
+        logger.log('TabManager: currentTab updated');
+      } else {
+        logger.log('TabManager: currentTab NOT updated (query mismatch: ${_currentQuery?.cacheKey} vs $cacheKey)');
       }
     } catch (e, stackTrace) {
       logger.log('TabManager resolve error', error: e, stackTrace: stackTrace);
       if (_currentQuery?.cacheKey == query.cacheKey) {
-        error.value = null; // Don't show errors to user.
+        error.value = null;
       }
     } finally {
       if (_currentQuery?.cacheKey == query.cacheKey) {
@@ -170,8 +188,20 @@ class TabManager {
       musicBrainzRecordingId: extras['musicBrainzRecordingId'] as String?,
       isrc: extras['isrc'] as String?,
       ytid: extras['ytid'] as String?,
-      instrument: 'guitar',
+      instrument: tabDefaultInstrument.value ?? 'guitar',
+      revisionId: extras['songsterrRevisionId'] as int?,
     );
+  }
+
+  /// Refresh the current track using the given instrument preference.
+  Future<void> refreshForInstrument(String instrument) async {
+    tabDefaultInstrument.value = instrument;
+    Hive.box('settings').put('tabDefaultInstrument', instrument);
+    // Reset revision so the next lookup fetches fresh metadata.
+    if (_currentQuery != null) {
+      _currentQuery = _currentQuery!.copyWith(revisionId: null);
+    }
+    await refresh();
   }
 
   Future<Tab?> _loadFromDisk(String cacheKey) async {
@@ -221,6 +251,27 @@ class TabManager {
     currentTab.value = null;
     error.value = null;
     await _resolveAsync(_currentQuery!);
+  }
+
+  /// Get available instruments for the current track.
+  Future<List<String>> getAvailableInstruments() async {
+    final provider = _provider;
+    final tab = currentTab.value;
+    if (provider == null || tab == null) return <String>[];
+    
+    final result = TabSearchResult(
+      songId: tab.songId ?? 0,
+      artist: tab.artist,
+      title: tab.song,
+      revisionId: tab.revisionId,
+      trackId: tab.trackId,
+      instrument: tab.instrument,
+      tuning: tab.tuning,
+      raw: null,
+    );
+    
+    if (result.songId == 0) return <String>[];
+    return await provider.getInstruments(result);
   }
 
   void dispose() {

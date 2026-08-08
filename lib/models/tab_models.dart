@@ -34,10 +34,12 @@ class Tab {
     this.tempo,
     this.sections = const <String>[],
     this.measures = const <TabMeasure>[],
+    this.chords = const <String>[],
     this.sourceUrl,
     this.songId,
     this.revisionId,
     this.trackId,
+    this.rawNotation,
   });
 
   /// Song title.
@@ -65,6 +67,9 @@ class Tab {
   /// Ordered measures in this tab.
   final List<TabMeasure> measures;
 
+  /// Chord symbols for this tab (if available from the provider).
+  final List<String> chords;
+
   /// Original Songsterr URL for attribution/deep-link.
   final String? sourceUrl;
 
@@ -77,6 +82,22 @@ class Tab {
   /// Track/part ID within the revision.
   final int? trackId;
 
+  /// Raw structured notation from the provider, if available.
+  final Map<String, dynamic>? rawNotation;
+
+  /// Compute measure timings from tempo if not explicitly provided.
+  List<TabMeasure> get measuredMeasures {
+    if (tempo == null || tempo! <= 0) return measures;
+    final msPerBeat = 60000.0 / tempo!;
+    return measures.map((m) {
+      final startTime = m.startTime ??
+          Duration(milliseconds: (msPerBeat * m.startBeat).round());
+      final duration = m.duration ??
+          Duration(milliseconds: (msPerBeat * m.beats).round());
+      return m.copyWith(startTime: startTime, duration: duration);
+    }).toList();
+  }
+
   Tab copyWith({
     String? song,
     String? artist,
@@ -86,10 +107,12 @@ class Tab {
     int? tempo,
     List<String>? sections,
     List<TabMeasure>? measures,
+    List<String>? chords,
     String? sourceUrl,
     int? songId,
     int? revisionId,
     int? trackId,
+    Map<String, dynamic>? rawNotation,
   }) {
     return Tab(
       song: song ?? this.song,
@@ -100,10 +123,12 @@ class Tab {
       tempo: tempo ?? this.tempo,
       sections: sections ?? this.sections,
       measures: measures ?? this.measures,
+      chords: chords ?? this.chords,
       sourceUrl: sourceUrl ?? this.sourceUrl,
       songId: songId ?? this.songId,
       revisionId: revisionId ?? this.revisionId,
       trackId: trackId ?? this.trackId,
+      rawNotation: rawNotation ?? this.rawNotation,
     );
   }
 
@@ -117,10 +142,12 @@ class Tab {
         'tempo': tempo,
         'sections': sections,
         'measures': measures.map((m) => m.toJson()).toList(),
+        'chords': chords,
         'sourceUrl': sourceUrl,
         'songId': songId,
         'revisionId': revisionId,
         'trackId': trackId,
+        'rawNotation': rawNotation,
       };
 
   /// Create from cached JSON.
@@ -137,10 +164,12 @@ class Tab {
               ?.map((m) => TabMeasure.fromJson(m as Map<String, dynamic>))
               .toList() ??
           const <TabMeasure>[],
+      chords: (json['chords'] as List?)?.cast<String>() ?? const <String>[],
       sourceUrl: json['sourceUrl'] as String?,
       songId: json['songId'] as int?,
       revisionId: json['revisionId'] as int?,
       trackId: json['trackId'] as int?,
+      rawNotation: json['rawNotation'] as Map<String, dynamic>?,
     );
   }
 }
@@ -156,12 +185,14 @@ class TabMeasure {
     this.isRepeatClose = false,
     this.repeatCount = 0,
     this.sectionLabel,
+    this.startTime,
+    this.duration,
   });
 
   /// Rendered text lines for this measure (one per string).
   final List<String> lines;
 
-  /// Start beat within the measure (0-based).
+  /// Start beat within the song (0-based global beat position).
   final int startBeat;
 
   /// Time signature numerator.
@@ -182,6 +213,12 @@ class TabMeasure {
   /// Optional section label (intro, verse, chorus, solo...).
   final String? sectionLabel;
 
+  /// Optional start time within the song (for playback sync).
+  final Duration? startTime;
+
+  /// Optional measure duration (for playback sync).
+  final Duration? duration;
+
   TabMeasure copyWith({
     List<String>? lines,
     int? startBeat,
@@ -191,6 +228,8 @@ class TabMeasure {
     bool? isRepeatClose,
     int? repeatCount,
     String? sectionLabel,
+    Duration? startTime,
+    Duration? duration,
   }) {
     return TabMeasure(
       lines: lines ?? this.lines,
@@ -201,6 +240,8 @@ class TabMeasure {
       isRepeatClose: isRepeatClose ?? this.isRepeatClose,
       repeatCount: repeatCount ?? this.repeatCount,
       sectionLabel: sectionLabel ?? this.sectionLabel,
+      startTime: startTime ?? this.startTime,
+      duration: duration ?? this.duration,
     );
   }
 
@@ -213,6 +254,8 @@ class TabMeasure {
         'isRepeatClose': isRepeatClose,
         'repeatCount': repeatCount,
         'sectionLabel': sectionLabel,
+        'startTime': startTime?.inMilliseconds,
+        'duration': duration?.inMilliseconds,
       };
 
   factory TabMeasure.fromJson(Map<String, dynamic> json) {
@@ -225,6 +268,12 @@ class TabMeasure {
       isRepeatClose: json['isRepeatClose'] as bool? ?? false,
       repeatCount: json['repeatCount'] as int? ?? 0,
       sectionLabel: json['sectionLabel'] as String?,
+      startTime: json['startTime'] != null
+          ? Duration(milliseconds: json['startTime'] as int)
+          : null,
+      duration: json['duration'] != null
+          ? Duration(milliseconds: json['duration'] as int)
+          : null,
     );
   }
 }

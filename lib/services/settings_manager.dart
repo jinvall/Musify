@@ -123,6 +123,10 @@ final repeatNotifier = ValueNotifier<AudioServiceRepeatMode>(
 
 var sleepTimerNotifier = ValueNotifier<Duration?>(null);
 
+final tabDefaultInstrument = ValueNotifier<String?>(
+  Hive.box('settings').get('tabDefaultInstrument'),
+);
+
 // Server-Notifiers
 
 final announcementURL = ValueNotifier<String?>(null);

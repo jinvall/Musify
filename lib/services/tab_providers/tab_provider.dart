@@ -57,6 +57,7 @@ class TabSearchResult {
     this.difficulty,
     this.views,
     this.sourceUrl,
+    this.image,
     this.raw,
   });
 
@@ -72,6 +73,7 @@ class TabSearchResult {
   final int? difficulty;
   final int? views;
   final String? sourceUrl;
+  final String? image;
   final Map<String, dynamic>? raw;
 
   String get displayTitle => title;
@@ -90,6 +92,7 @@ class TabSearchResult {
     int? difficulty,
     int? views,
     String? sourceUrl,
+    String? image,
     Map<String, dynamic>? raw,
   }) {
     return TabSearchResult(
@@ -105,6 +108,7 @@ class TabSearchResult {
       difficulty: difficulty ?? this.difficulty,
       views: views ?? this.views,
       sourceUrl: sourceUrl ?? this.sourceUrl,
+      image: image ?? this.image,
       raw: raw ?? this.raw,
     );
   }
@@ -121,6 +125,7 @@ class TabSearchQuery {
     this.isrc,
     this.ytid,
     this.instrument = 'guitar',
+    this.revisionId,
   });
 
   final String? artist;
@@ -131,6 +136,7 @@ class TabSearchQuery {
   final String? isrc;
   final String? ytid;
   final String instrument;
+  final int? revisionId;
 
   /// Generate a cache key from stable identifiers.
   String get cacheKey {
@@ -148,6 +154,9 @@ class TabSearchQuery {
     if (parts.isEmpty) {
       parts.add('fallback:${DateTime.now().millisecondsSinceEpoch ~/ 1000}');
     }
+    if (revisionId != null) {
+      parts.add('rev:$revisionId');
+    }
     return parts.join('|');
   }
 
@@ -156,5 +165,29 @@ class TabSearchQuery {
     result = result.replaceAll(RegExp(r'[^\w\s]'), '');
     result = result.replaceAll(RegExp(r'\s+'), ' ');
     return result;
+  }
+
+  TabSearchQuery copyWith({
+    String? artist,
+    String? title,
+    String? album,
+    int? duration,
+    String? musicBrainzRecordingId,
+    String? isrc,
+    String? ytid,
+    String? instrument,
+    int? revisionId,
+  }) {
+    return TabSearchQuery(
+      artist: artist ?? this.artist,
+      title: title ?? this.title,
+      album: album ?? this.album,
+      duration: duration ?? this.duration,
+      musicBrainzRecordingId: musicBrainzRecordingId ?? this.musicBrainzRecordingId,
+      isrc: isrc ?? this.isrc,
+      ytid: ytid ?? this.ytid,
+      instrument: instrument ?? this.instrument,
+      revisionId: revisionId ?? this.revisionId,
+    );
   }
 }

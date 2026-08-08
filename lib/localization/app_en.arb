@@ -146,6 +146,8 @@
   "tab": "Tab",
   "tabNotAvailable": "Tab not available",
   "findingTabs": "Finding tabs...",
+  "chordsNotAvailable": "Chords not available",
+  "chords": "Chords",
   "makeOffline": "Make available offline",
   "minutes": "Minutes",
   "moreOptions": "More options",

@@ -66,6 +66,24 @@ class TabRenderer {
   }
 
   /// Render a single measure as ASCII tab lines.
+  String renderMeasure(Tab tab, int index) {
+    if (index < 0 || index >= tab.measures.length) return '';
+    return _renderMeasure(tab.tuning, tab.measures[index]);
+  }
+
+  /// Render chords as a simple chord chart.
+  String renderChords(Tab tab) {
+    if (tab.chords.isEmpty) return '';
+    final buffer = StringBuffer();
+    buffer.writeln('CHORDS');
+    buffer.writeln();
+    for (final chord in tab.chords) {
+      buffer.writeln('  $chord');
+    }
+    return buffer.toString();
+  }
+
+  /// Render a single measure as ASCII tab lines.
   String _renderMeasure(List<int> tuning, TabMeasure measure) {
     if (measure.lines.isEmpty) return '';
 
