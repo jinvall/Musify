@@ -139,10 +139,15 @@ class _TabMeasurePainter extends CustomPainter {
       final cx = left + segmentWidth * (i + 0.5);
       final span = TextSpan(
         text: trimmed,
-        style: TextStyle(color: fretColor, fontSize: 13, fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+        style: TextStyle(color: fretColor, fontSize: 13, fontWeight: FontWeight.w700, fontFamily: 'monospace'),
       );
       final tp = TextPainter(text: span, textDirection: TextDirection.ltr);
       tp.layout();
+      final rect = Rect.fromCenter(center: Offset(cx, y), width: tp.width + 10, height: tp.height + 6);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        Paint()..color = backgroundColor,
+      );
       tp.paint(canvas, Offset(cx - tp.width / 2, y - tp.height / 2));
     }
   }
